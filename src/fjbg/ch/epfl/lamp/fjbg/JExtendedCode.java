@@ -147,7 +147,7 @@ public class JExtendedCode extends JCode {
     public void emitPUSH(Long value) { emitPUSH(value.longValue()); }
 
     public void emitPUSH(float value) {
-        if (value == 0.0F)
+        if (Float.floatToIntBits(value) == Float.floatToIntBits(0.0F))
             emitFCONST_0();
         else if (value == 1.0F)
             emitFCONST_1();
@@ -159,7 +159,7 @@ public class JExtendedCode extends JCode {
     public void emitPUSH(Float value) { emitPUSH(value.floatValue()); }
 
     public void emitPUSH(double value) {
-        if (value == 0.0)
+        if (Double.doubleToLongBits(value) == Double.doubleToLongBits(0.0))
             emitDCONST_0();
         else if (value == 1.0)
             emitDCONST_1();
