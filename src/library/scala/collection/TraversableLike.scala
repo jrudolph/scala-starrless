@@ -495,7 +495,7 @@ trait TraversableLike[+A, +Repr] extends HasNewBuilder[A, Repr]
 
   /** Selects the last element.
    *  $orderDependent
-   *  @return  the first element of this $coll.
+   *  @return  the last element of this $coll.
    *  @throws `NoSuchElementException` if the $coll is empty.
    */
   def last: A = {
