@@ -114,7 +114,7 @@ abstract class LiftCode extends Transform with Reifiers {
   def codify (tree: Tree): Tree =
     New(TypeTree(appliedType(definitions.CodeClass.typeConstructor,
                              List(tree.tpe))),
-        List(List(inject(reify(tree)))))
+        List(List(inject(reify(tree)), tree)))
 
 }
 
