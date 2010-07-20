@@ -11,7 +11,7 @@
 package scala.reflect
 
 /** This type is required by the compiler and <b>should not be used in client code</b>. */
-class Code[T](val tree: Tree, _value: => T) {
+class Code[T](val tree: Tree, _value: => T, val source: String, val column: Int) {
   def eval: T = _value
 }
 

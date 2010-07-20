@@ -111,10 +111,20 @@ abstract class LiftCode extends Transform with Reifiers {
   def inject(code: reflect.Tree): Tree =
     new Injector(ListMap.empty, new FreshNameCreator.Default).inject(code)
 
-  def codify (tree: Tree): Tree =
+  def codify (tree: Tree): Tree = {
+    val (source, col) = 
+      if (tree.pos.isRange) {
+        val start = tree.pos.startOrPoint
+        val length = tree.pos.endOrPoint - tree.pos.startOrPoint
+        (tree.pos.source.content drop start take length mkString, 0)
+      }
+      else
+        (tree.pos.lineContent, tree.pos.column - 1)
+        
     New(TypeTree(appliedType(definitions.CodeClass.typeConstructor,
                              List(tree.tpe))),
-        List(List(inject(reify(tree)), tree)))
+        List(List(inject(reify(tree)), tree, Literal(Constant(source)), Literal(Constant(col)))))
+  }
 
 }
 
