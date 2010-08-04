@@ -1888,8 +1888,8 @@ trait Typers { self: Analyzer =>
         }
         val stats1 = typedStats(block.stats, context.owner)
         val expr1 = typed(block.expr, mode & ~(FUNmode | QUALmode), pt)
-        treeCopy.Block(block, stats1, expr1)
-          .setType(if (treeInfo.isPureExpr(block)) expr1.tpe else expr1.tpe.deconst)
+        val blk1 = treeCopy.Block(block, stats1, expr1)
+        blk1.setType(if (treeInfo.isPureExpr(blk1)) expr1.tpe else expr1.tpe.deconst)
       } finally {
         // enable escaping privates checking from the outside and recycle
         // transient flag
