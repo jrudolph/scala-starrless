@@ -360,7 +360,7 @@ trait Namers { self: Analyzer =>
             } exists (_.mods hasFlag DEFAULTPARAM)
 
             if (hasDefault) {
-              val m = ensureCompanionObject(tree, companionModuleDef(tree, List(gen.scalaScalaObjectConstr)))
+              val m = ensureCompanionObject(tree, companionModuleDef(tree))
               classAndNamerOfModule(m) = (tree, null)
             }
           case tree @ ModuleDef(mods, name, _) => 
@@ -990,6 +990,8 @@ trait Namers { self: Analyzer =>
                 val module = companionModuleOf(meth.owner, context)
                 module.initialize // call type completer (typedTemplate), adds the
                                   // module's templateNamer to classAndNamerOfModule
+                if (!classAndNamerOfModule.contains(module))
+                  return // fix #3649 (prevent crash in erroneous source code)
                 val (cdef, nmr) = classAndNamerOfModule(module)
                 moduleNamer = Some(cdef, nmr)
                 (cdef, nmr)
@@ -1065,24 +1067,7 @@ trait Namers { self: Analyzer =>
         case tp => 
           tp
       }
-
-      def verifyOverriding(other: Symbol): Boolean = {
-        if(other.unsafeTypeParams.length != tparamSyms.length) { 
-          context.error(tpsym.pos, 
-              "The kind of "+tpsym.keyString+" "+tpsym.varianceString + tpsym.nameString+
-              " does not conform to the expected kind of " + other.defString + other.locationString + ".")
-          false
-        } else true 
-      }
-      
-      // @M: make sure overriding in refinements respects rudimentary kinding
-      // have to do this early, as otherwise we might get crashes: (see neg/bug1275.scala)
-      //   suppose some parameterized type member is overridden by a type member w/o params, 
-      //   then appliedType will be called on a type that does not expect type args --> crash
-      if (tpsym.owner.isRefinementClass &&  // only needed in refinements
-          !tpsym.allOverriddenSymbols.forall{verifyOverriding(_)})
-	      ErrorType 
-      else polyType(tparamSyms, tp)   
+      polyType(tparamSyms, tp)   
     }
 
     /** Given a case class
