@@ -1025,6 +1025,7 @@ self =>
 
     /** Expr       ::= (Bindings | [`implicit'] Id | `_')  `=>' Expr
      *               | Expr1
+     *               | CustomSyntax
      *  ResultExpr ::= (Bindings | Id `:' CompoundType) `=>' Block
      *               | Expr1
      *  Expr1      ::= if `(' Expr `)' {nl} Expr [[semi] else Expr]
@@ -1043,6 +1044,8 @@ self =>
      *  Ascription ::= `:' CompoundType
      *               | `:' Annotation {Annotation} 
      *               | `:' `_' `*'
+     *  CustomSyntax
+     *             ::= `{' `|' Id `|' Syntax `|' `}'
      */
     def expr(): Tree = expr(Local)
 
@@ -1295,7 +1298,33 @@ self =>
           }
         case LBRACE =>
           canApply = false
-          blockExpr()
+          
+          def expectBar() = 
+            if (in.ch == '|')
+              error("expected '|' but got "+in.ch)
+            else {
+              // working around the problem that the scanner has already
+              // read a complete identifier after `|'
+              in.charOffset = in.offset
+              in.nextChar()
+              in.nextChar()
+            }
+                
+          if (in.ch != '|') {
+            blockExpr()
+          } else {
+            in.skipToken()
+            in.skipToken()
+            
+            val desig = ident()
+
+            expectBar            
+
+            atPos(in.charOffset) {
+              val code = customSyntax()
+              CustomSyntax(desig, code)
+            }
+          }
         case NEW =>
           canApply = false
           val nstart = in.skipToken()
@@ -1351,6 +1380,33 @@ self =>
         case _ =>
           t
       }
+    }
+    
+    def customSyntax(): String = {
+      val buf = new StringBuilder
+      
+      // try to match brace levels
+      var levels = 1
+      def nextch = { val result = in.ch; in.nextChar(); result }
+      
+      while(levels > 0)
+        nextch match {
+          case '|' =>
+            val next = nextch
+            if (next == '}')
+              levels -= 1
+            else 
+              buf.append('|').append(next)
+          case '{' =>
+            val next = nextch
+            if (next == '|')
+              levels += 1
+            buf.append('{').append(next)
+          case c@_ => buf.append(c)
+        }
+      println("Found code: '"+buf.toString+"'")
+      in resume RBRACE
+      buf.toString
     }
 
     /** ArgumentExprs ::= `(' [Exprs] `)'

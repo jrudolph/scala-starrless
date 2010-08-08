@@ -319,7 +319,13 @@ trait Trees extends reflect.generic.Trees { self: SymbolTable =>
 
   object TypeTree extends TypeTreeExtractor
 
-  def TypeTree(tp: Type): TypeTree = TypeTree() setType tp
+  def TypeTree(tp: Type): TypeTree = TypeTree() setType tp  
+  
+  /**
+   * A piece of CustomSyntax which has to be consumed and transformed
+   * into real trees by a compiler plugin before `namer` phase.
+   */
+  case class CustomSyntax(designator: Name, code: String) extends Tree
   
   /** Documented definition, eliminated by analyzer */
   case class DocDef(comment: DocComment, definition: Tree)
@@ -845,6 +851,8 @@ trait Trees extends reflect.generic.Trees { self: SymbolTable =>
         treeCopy.ExistentialTypeTree(tree, transform(tpt), transformTrees(whereClauses))
       case SelectFromArray(qualifier, selector, erasure) =>
         treeCopy.SelectFromArray(tree, transform(qualifier), selector, erasure)
+      case CustomSyntax(desig, code) =>
+        tree
     }
 
     def transformTrees(trees: List[Tree]): List[Tree] =
@@ -893,6 +901,7 @@ trait Trees extends reflect.generic.Trees { self: SymbolTable =>
         traverseTrees(ts)
       case TypeTreeWithDeferredRefCheck() => // TODO: should we traverse the wrapped tree?
       // (and rewrap the result? how to update the deferred check? would need to store wrapped tree instead of returning it from check)
+      case CustomSyntax(desig, code) =>
       case _ => super.traverse(tree)
     }
     
