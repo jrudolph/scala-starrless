@@ -1310,9 +1310,9 @@ self =>
               in.nextChar()
             }
                 
-          if (in.ch != '|') {
+          if (!settings.Ycustomsyntax.value || in.ch != '|')
             blockExpr()
-          } else {
+          else {
             in.skipToken()
             in.skipToken()
             

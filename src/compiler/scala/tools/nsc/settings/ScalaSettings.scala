@@ -142,6 +142,8 @@ trait ScalaSettings extends AbsScalaSettings with StandardScalaSettings {
 
   // Warnings
   val Ywarndeadcode = BooleanSetting    ("-Ywarn-dead-code", "Emit warnings for dead code")
+  
+  val Ycustomsyntax = BooleanSetting    ("-Ycustom-syntax", "Enable custom syntax extensions in the parser")
 
   /**
    * "fsc-specific" settings.
