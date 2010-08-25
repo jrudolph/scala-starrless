@@ -71,6 +71,12 @@ abstract class Inliners extends SubComponent {
   /** Is the given class a closure? */
   def isClosureClass(cls: Symbol): Boolean =
     cls.isFinal && cls.isSynthetic && !cls.isModuleClass && cls.isAnonymousFunction
+  
+  def lookupIMethod(meth: Symbol, receiver: Symbol): Option[IMethod] = {
+    def tryParent(sym: Symbol) = icodes icode sym flatMap (_ lookupMethod meth)
+     
+    receiver.info.baseClasses.iterator map tryParent find (_.isDefined) getOrElse None
+  }
 
   /** 
    * Simple inliner.
@@ -634,12 +640,6 @@ abstract class Inliners extends SubComponent {
 
         score > 0
       })
-    }
-
-    def lookupIMethod(meth: Symbol, receiver: Symbol): Option[IMethod] = {
-      def tryParent(sym: Symbol) = icodes icode sym flatMap (_ lookupMethod meth)
-      
-      receiver.info.baseClasses.iterator map tryParent find (_.isDefined) getOrElse None
     }
   } /* class Inliner */
 } /* class Inliners */

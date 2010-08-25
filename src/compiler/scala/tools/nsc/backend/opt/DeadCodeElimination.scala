@@ -270,6 +270,91 @@ abstract class DeadCodeElimination extends SubComponent {
       abort("could not find init in: " + method)
     }
 
+    val cpp = new copyPropagation.CopyAnalysis
+    val constructorPureness = new scala.collection.mutable.HashMap[Symbol, Boolean]
+    constructorPureness(definitions.ObjectClass.info.member("<init>")) = true
+    
+    def isPureConstructor(sym: Symbol): Boolean = {
+      log("trying to find pureness of "+sym+" of "+sym.owner+" "+constructorPureness.size)
+  
+      if (constructorPureness contains sym) {
+        val res = constructorPureness(sym)
+        log("delivering from the cache: "+res)
+        res
+      } else {
+        val method = inliner.lookupIMethod(sym, sym.owner)
+        
+        def checkMethod(m: IMethod): Boolean = {
+          var res = true
+
+          cpp.init(m)
+          cpp.run
+
+          for { bb <- linearizer.linearize(m) } {
+            var info = cpp.in(bb)
+
+            for (i <- bb) {
+              import copyPropagation._
+
+              def spoil(extra: Option[String] = None) = {
+                log("Pureness of "+sym+" was first spoiled by "+i+(extra map (" ("+_+")") getOrElse ""))
+                res = false
+              }    
+            
+              i match {
+                // simple pure instructions
+                case THIS(_) 
+                   | CONSTANT(_)
+                   | SWITCH(_, _)
+                   | JUMP(_)
+                   | CJUMP(_, _, _, _)
+                   | CZJUMP(_, _, _, _)
+                   | RETURN(_)
+                   | NEW(_)
+                   | CREATE_ARRAY(_, _)
+                   | IS_INSTANCE(_)
+                   | DROP(_)
+                   | DUP(_)
+                   | MONITOR_ENTER()
+                   | MONITOR_EXIT() 
+                   | SCOPE_ENTER(_) 
+                   | SCOPE_EXIT(_)
+                   | LOAD_EXCEPTION()
+                   | LOAD_ARRAY_ITEM(_)
+                   | LOAD_LOCAL(_)
+                   | LOAD_FIELD(_, _)
+                   | LOAD_MODULE(_)
+                   | STORE_LOCAL(_) =>
+                case STORE_FIELD(field, isStatic) =>
+                  info.stack(1) match {
+                    case Deref(This) => log("store is ok because it is field of this: "+i)
+                    case _ => spoil(Some("Writing foreign fields"))
+                  }
+                case CALL_METHOD(method, style) if method.isConstructor =>
+                  if (!isPureConstructor(method))
+                    spoil(Some("Constructor is not provably pure"))
+/* 
+  case STORE_ARRAY_ITEM(kind) =>    // only if array is owned by this instance
+  case CALL_PRIMITIVE(primitive) => // only if primitive throws no exceptions etc
+  case CHECK_CAST(tpe) =>           // may throw, so it is only pure if you ignore ClassCastException (which may be ok)
+  case THROW() =>                   // is never pure
+*/
+                case _ => spoil()
+              }
+            
+              info = cpp.interpret(info, i)
+            }
+          }
+          res
+        }
+
+        val pureness = method map checkMethod getOrElse false        
+        log("Pureness of "+sym+" was found out as "+pureness)
+        constructorPureness(sym) = pureness
+        pureness
+      }
+    }
+
     lazy val RuntimePackage = definitions.getModule("scala.runtime")
     /** Is 'sym' a side-effecting method? TODO: proper analysis.  */
     private def isSideEffecting(sym: Symbol): Boolean = {
@@ -277,7 +362,9 @@ abstract class DeadCodeElimination extends SubComponent {
        || (sym.isConstructor 
            && !(sym.owner == method.symbol.owner && method.symbol.isConstructor) // a call to another constructor  
            && sym.owner.owner == RuntimePackage.moduleClass)
-       || (sym.isConstructor && inliner.isClosureClass(sym.owner))
+       || (sym.isConstructor && isPureConstructor(sym))
+       || (sym.isConstructor && inliner.isClosureClass(sym.owner)
+       )
 /*       || definitions.isBox(sym)
        || definitions.isUnbox(sym)*/)
     }
