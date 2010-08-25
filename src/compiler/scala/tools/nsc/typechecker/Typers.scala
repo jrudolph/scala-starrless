@@ -3349,7 +3349,19 @@ trait Typers { self: Analyzer =>
                 res.tpe = res.tpe.notNull
               }
               */
-              if (fun2.symbol == Array_apply) {
+              
+              // Try to replace invocations of (object) Array.apply directly with
+              // ArrayValue trees.
+              if (fun2.symbol.name == nme.apply && fun2.symbol.owner == ArrayModule.moduleClass) {
+                res match {
+                  case Apply(_, args) => {
+                    val tpe = res.tpe.resultType.typeArgs(0)
+                    typed { atPos(tree.pos)(ArrayValue(TypeTree(tpe), args)) }
+                  }
+                  case _ => res
+                }
+              }
+              else if (fun2.symbol == Array_apply) {
                 val checked = gen.mkCheckInit(res)
                 // this check is needed to avoid infinite recursion in Duplicators
                 // (calling typed1 more than once for the same tree)
