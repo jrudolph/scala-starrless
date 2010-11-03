@@ -293,6 +293,12 @@ class Global(var settings: Settings, var reporter: Reporter) extends SymbolTable
     val runsRightAfter = None
   } with SyntaxAnalyzer
  
+  object desugar extends {
+    val global: Global.this.type = Global.this
+    val runsAfter = Nil
+    val runsRightAfter = Some("parser")
+  } with Desugar
+
   // factory method for 
   // phaseName = "namer"
   // phaseName = "parser"
@@ -511,6 +517,7 @@ class Global(var settings: Settings, var reporter: Reporter) extends SymbolTable
    */
   protected def computeInternalPhases() {
     phasesSet += syntaxAnalyzer             // The parser
+    phasesSet += desugar
     phasesSet += analyzer.namerFactory      //   note: types are there because otherwise
     phasesSet += analyzer.packageObjects    //   consistency check after refchecks would fail.
     phasesSet += analyzer.typerFactory

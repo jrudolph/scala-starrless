@@ -1837,6 +1837,13 @@ self =>
             mods |= Flags.CASEACCESSOR
           }
         }
+        else {
+          if (in.token == LAZY) {
+            in.nextToken()
+            mods |= Flags.LAZY
+          }
+        }
+
         val nameOffset = in.offset
         val name = ident()
         var bynamemod = 0
